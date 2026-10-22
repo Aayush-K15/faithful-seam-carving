@@ -85,3 +85,21 @@ def test_load_yolo_seg(tmp_path):
     s = load_yolo_seg(tmp_path / "a.jpg", tmp_path / "a.txt", min_area_frac=0.0)
     assert s.n_objects == 2 and sorted(s.classes) == [0, 2]
     assert s.labels[25, 25] > 0 and s.labels[45, 5] == 0
+
+
+def test_object_detail_identity_scaling_and_carving():
+    from fsc.metrics import object_detail
+    img = np.full((60, 80), 40, np.uint8)
+    lab = np.zeros((60, 80), np.int32)
+    tex = (np.add.outer(np.sin(np.arange(30) / 3.0), np.cos(np.arange(30) / 2.0)) * 60 + 128).astype(np.uint8)
+    img[15:45, 25:55] = tex
+    lab[15:45, 25:55] = 1
+    same = resize(img, 80)
+    assert object_detail(img, lab, same)[0] == pytest.approx(1.0)
+    squashed = baselines.scale(img, 60)
+    # seams forced through the object: make the object the only cheap region
+    from fsc.engine import resize as carve
+    cut = carve(img, 60, pixel_energy=np.where(lab > 0, 0.0, 100.0))
+    d_scale = object_detail(img, lab, squashed)[0]
+    d_cut = object_detail(img, lab, cut)[0]
+    assert d_scale > 0.8 and d_cut < d_scale

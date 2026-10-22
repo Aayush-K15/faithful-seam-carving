@@ -39,6 +39,7 @@ from .integrity import contact_pairs
 
 DESTROYED_KEEP = 0.5
 WTS_TOLERANCE = 0.02
+DETAIL_LOST = 0.5          # object detail (SSIM) below this counts as "detail lost"
 
 
 def _bbox_aspect(mask: np.ndarray) -> Optional[float]:
@@ -55,6 +56,52 @@ def _compactness(mask: np.ndarray) -> Optional[float]:
     contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     perim = sum(cv2.arcLength(c, True) for c in contours)
     return perim * perim / area
+
+
+def _bbox(mask: np.ndarray) -> Optional[tuple[int, int, int, int]]:
+    ys, xs = np.nonzero(mask)
+    if len(ys) == 0:
+        return None
+    return int(ys.min()), int(ys.max()) + 1, int(xs.min()), int(xs.max()) + 1
+
+
+def object_detail(image: np.ndarray, labels: np.ndarray, res: CarveResult,
+                  min_side: int = 7) -> np.ndarray:
+    """
+    Per-object detail retention in [-1, 1] (1 = perfect): SSIM between the
+    object as it was and the object as it is now, after resizing the object's
+    output bounding box back to its original bounding box. Measured only over
+    the object's own pixels.
+
+    Uniform squashing (scaling) loses little here: resizing back undoes it up
+    to blur, and the squash itself is counted by ``aspect``. Seams through an
+    object shift its texture and outline non-uniformly, which this catches.
+    Objects smaller than ``min_side`` px in either dimension get NaN.
+    """
+    from skimage.metrics import structural_similarity
+
+    from .engine import to_gray
+    labels = np.asarray(labels, dtype=np.int32)
+    g0, g1 = to_gray(image), to_gray(res.image)
+    out_lab = labels[res.src_rows, res.src_cols]
+    n = int(labels.max())
+    detail = np.full(n, np.nan)
+    for i in range(1, n + 1):
+        b0, b1 = _bbox(labels == i), _bbox(out_lab == i)
+        if b0 is None:
+            continue
+        y0, y1, x0, x1 = b0
+        h, w = y1 - y0, x1 - x0
+        if min(h, w) < min_side:
+            continue
+        if b1 is None:
+            detail[i - 1] = 0.0
+            continue
+        crop0 = g0[y0:y1, x0:x1]
+        crop1 = cv2.resize(g1[b1[0]:b1[1], b1[2]:b1[3]], (w, h), interpolation=cv2.INTER_LINEAR)
+        _, smap = structural_similarity(crop0, crop1, data_range=1.0, full=True, win_size=7)
+        detail[i - 1] = float(smap[labels[y0:y1, x0:x1] == i].mean())
+    return detail
 
 
 def per_object(labels: np.ndarray, res: CarveResult) -> dict[str, np.ndarray]:
@@ -101,7 +148,7 @@ def per_object(labels: np.ndarray, res: CarveResult) -> dict[str, np.ndarray]:
 
 
 def image_metrics(labels: np.ndarray, res: CarveResult, *, in_width: int, in_height: int,
-                  saliency: Optional[np.ndarray] = None) -> dict:
+                  saliency: Optional[np.ndarray] = None, image: Optional[np.ndarray] = None) -> dict:
     """One row of the results table for one (image, method, target size)."""
     po = per_object(labels, res)
     n = len(po["kept"])
@@ -129,4 +176,10 @@ def image_metrics(labels: np.ndarray, res: CarveResult, *, in_width: int, in_hei
     if saliency is not None:
         s = np.asarray(saliency, dtype=np.float64)
         row["saliency_kept"] = float((s * (res.source_counts > 0)).sum() / max(s.sum(), 1e-12))
+    if image is not None:
+        d = object_detail(image, labels, res)
+        ok = np.isfinite(d)
+        row["detail"] = float(d[ok].mean()) if ok.any() else float("nan")
+        row["detail_min"] = float(d[ok].min()) if ok.any() else float("nan")
+        row["detail_lost"] = int((d[ok] < DETAIL_LOST).sum())
     return row

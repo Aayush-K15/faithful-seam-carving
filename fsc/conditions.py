@@ -19,9 +19,10 @@ Original three fixes  lines           BASE + Canny/Hough line penalty
 Integrity (ours)      static_mask     BASE + constant cost on object pixels (the usual fix)
                       budget          BASE + per-object budget (no gap term, no guard)
                       budget_gap      BASE + budget + gap protection (no guard)
-                      faithful        BASE + budget + gaps + integrity guard (finish: scale)
+                      faithful        BASE + budget + gaps + integrity guard at 0% (finish: scale)
                       faithful_crop   same, finish: crop keeping the most object pixels
                       faithful_all    faithful + lines + saliency
+Guard sweep           faithful@X      faithful with the guard allowing seams to take a share X of any object
 """
 
 from __future__ import annotations
@@ -46,7 +47,7 @@ class Params:
     gamma: float = 8.0            # budget: growth with fraction deleted
     gap_px: int = 3
     gap_cost: float = 50.0
-    max_loss: float = 0.5         # guard threshold
+    max_loss: float = 0.0         # guard: share of an object seams may take (0 = background only)
     knee: dict = field(default_factory=dict)   # CostKneeStop kwargs
 
 
@@ -54,6 +55,7 @@ GROUPS = {
     "Baselines": ["scale", "crop", "sc_backward", "sc_forward"],
     "Original fixes": ["lines", "saliency", "knee", "fixes_all"],
     "Integrity (ours)": ["static_mask", "budget", "budget_gap", "faithful", "faithful_crop", "faithful_all"],
+    "Guard threshold sweep": ["faithful@0.5", "faithful@0.2", "faithful@0.1", "faithful@0.05"],
 }
 ALL = [c for g in GROUPS.values() for c in g]
 
@@ -61,15 +63,25 @@ LABELS = {
     "scale": "Scaling", "crop": "Centre crop", "sc_backward": "Seam carving (backward)",
     "sc_forward": "Seam carving (forward)", "lines": "+ lines", "saliency": "+ saliency",
     "knee": "+ cost-knee stop", "fixes_all": "+ all three fixes", "static_mask": "+ static masks",
-    "budget": "+ budget", "budget_gap": "+ budget + gaps", "faithful": "Faithful (ours)",
+    "budget": "+ budget", "budget_gap": "+ budget + gaps", "faithful": "Faithful (ours, guard 0%)",
     "faithful_crop": "Faithful, crop finish", "faithful_all": "Faithful + lines + saliency",
 }
+
+
+def label(name: str) -> str:
+    if name.startswith("faithful@"):
+        return f"Faithful, guard at {float(name.split('@')[1]):.0%}"
+    return LABELS[name]
 
 
 def run(name: str, image: np.ndarray, labels: np.ndarray, target_width: int,
         target_height: Optional[int] = None, params: Optional[Params] = None) -> CarveResult:
     p = params or Params()
     th = target_height
+    if name.startswith("faithful@"):          # guard-threshold sweep: faithful@<max_loss>
+        from dataclasses import replace
+        p = replace(p, max_loss=float(name.split("@")[1]))
+        name = "faithful"
 
     if name == "scale":
         return baselines.scale(image, target_width, th)

@@ -45,7 +45,7 @@ def panel_row(tiles: Sequence[tuple], *, scale: int = 1, gap: int = 12, header: 
         fs = header / 110.0
         cv2.putText(hdr, title, (6, int(header * 0.42)), cv2.FONT_HERSHEY_SIMPLEX, fs, (25, 25, 25), 2, cv2.LINE_AA)
         if note:
-            bad = any(w in note for w in ("destroyed", "fused")) and not note.startswith("0 destroyed, 0")
+            bad = any(w in note for w in ("destroyed", "fused")) and not note.startswith("0 destroyed, 0 fused")
             color = (40, 40, 170) if bad else (50, 110, 40)
             cv2.putText(hdr, note, (6, int(header * 0.86)), cv2.FONT_HERSHEY_SIMPLEX, fs * 0.85, color, 2,
                         cv2.LINE_AA)

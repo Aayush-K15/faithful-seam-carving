@@ -70,7 +70,7 @@ def main():
             note = f"{m['destroyed'] + m['vanished']} destroyed, {m['merged_objects']} fused"
             if c == "scale":
                 note = "nothing lost, all squashed"
-            tiles.append((conditions.LABELS[c], object_overlay(res.image, s.labels[res.src_rows, res.src_cols],
+            tiles.append((conditions.label(c), object_overlay(res.image, s.labels[res.src_rows, res.src_cols],
                                                                alpha=args.tint), note))
         if args.tiles:
             tdir = out / "tiles" / f"{name}_{int(args.ratio * 100)}"

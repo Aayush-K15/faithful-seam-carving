@@ -26,9 +26,14 @@ instance label map (0 = background, 1..N = objects) on the ORIGINAL image:
    other seam is worse: carving stops and the engine finishes by scaling or
    cropping.
 
-Note that (a) enforces the "destroyed object" criterion by construction when
-max_loss = 0.5. The informative comparisons are the budget WITHOUT the guard,
-and how much of the size change the guard lets carving do.
+max_loss is a dial. At 0.5 every object survives as a separate thing, but
+seams still run through objects and ruin their detail (per-object SSIM on
+COCO at half width: 0.57, half the objects below 0.5). At 0 (the default)
+seams may only take background; carving stops at the first seam that would
+touch an object, and scaling finishes the job. That keeps object detail
+above plain scaling (0.91 vs 0.87) with less squash (0.46 vs 0.69). Note that
+at 0 no object ever loses pixels, so d_i stays 0 and the budget behaves like
+a static mask; the budget matters for thresholds above 0.
 """
 
 from __future__ import annotations
@@ -108,7 +113,7 @@ class InstanceIntegrity:
     gamma: float = 8.0            # growth of that cost with the fraction already deleted
     gap_px: int = 3               # gaps this thin (px) between different objects are protected
     gap_cost: float = 50.0        # extra cost of a protected gap pixel (0 disables)
-    max_loss: float = 0.5         # guard: refuse seams that delete more than this of an object
+    max_loss: float = 0.0         # guard: refuse seams that delete more than this share of an object
     guard_merges: bool = True     # guard: refuse seams that make two objects touch
 
     # bookkeeping

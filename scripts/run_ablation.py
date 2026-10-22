@@ -49,15 +49,15 @@ def work(img_path):
         tw = round(W * ratio)
         for cond in args.conditions:
             res = conditions.run(cond, s.image, s.labels, tw)
-            r = image_metrics(s.labels, res, in_width=W, in_height=H, saliency=sal)
+            r = image_metrics(s.labels, res, in_width=W, in_height=H, saliency=sal, image=s.image)
             refusals = getattr(res, "refusals", {})
             rows.append(dict(image=s.name, width=W, height=H, ratio=ratio, condition=cond,
                              refusals_loss=refusals.get("loss", 0), refusals_merge=refusals.get("merge", 0), **r))
     return rows
 
 
-SUM_KEYS = ["destroyed", "vanished", "worse_than_scaling", "merged_objects"]
-MEAN_KEYS = ["merged_pairs", "aspect_distortion", "raggedness", "carved_fraction", "saliency_kept", "seconds"]
+SUM_KEYS = ["destroyed", "vanished", "worse_than_scaling", "merged_objects", "detail_lost"]
+MEAN_KEYS = ["merged_pairs", "detail", "aspect_distortion", "raggedness", "carved_fraction", "saliency_kept", "seconds"]
 
 
 def summarise(rows, ratios, conds):
@@ -68,7 +68,7 @@ def summarise(rows, ratios, conds):
             if not rs:
                 continue
             n_obj = sum(r["n_objects"] for r in rs)
-            d = dict(ratio=ratio, condition=c, label=conditions.LABELS[c], images=len(rs), objects=n_obj)
+            d = dict(ratio=ratio, condition=c, label=conditions.label(c), images=len(rs), objects=n_obj)
             for k in SUM_KEYS:
                 d[f"{k}_pct"] = 100.0 * sum(r[k] for r in rs) / max(n_obj, 1)
             intact = sum(r["intact_rate"] * r["n_objects"] for r in rs)
@@ -88,6 +88,7 @@ def write_md(summary, path):
             ("destroyed_pct", "Destroyed %", "{:.1f}"), ("vanished_pct", "Vanished %", "{:.1f}"),
             ("merged_objects_pct", "Fused %", "{:.1f}"), ("worse_than_scaling_pct", "Worse than scaling %", "{:.1f}"),
             ("images_with_damage_pct", "Images with any damage %", "{:.0f}"),
+            ("detail", "Object detail (SSIM)", "{:.3f}"), ("detail_lost_pct", "Detail lost %", "{:.1f}"),
             ("aspect_distortion", "Aspect distortion", "{:.3f}"), ("raggedness", "Raggedness", "{:.2f}"),
             ("carved_fraction", "Carved %", "{:.0%}"), ("seconds", "Seconds", "{:.2f}")]
     lines = []
