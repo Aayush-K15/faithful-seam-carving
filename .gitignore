@@ -4,3 +4,11 @@ __pycache__/
 data/
 study/
 results/run_log.txt
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/build.log
