@@ -69,6 +69,11 @@ if use_yolo:
         st.sidebar.warning("YOLO not installed (pip install ultralytics). "
                            "Running without object masks, so Faithful cannot protect anything.")
 
+if use_yolo and labels.max() == 0:
+    st.warning("No objects detected. YOLO only knows the 80 COCO classes (people, animals, cups, cars...). "
+               "With nothing to protect, Faithful behaves like plain seam carving, so the results will look the same. "
+               "Try a photo with several people, animals or everyday objects.")
+
 c0, c1 = st.columns(2)
 c0.subheader(f"Original ({W}x{H})")
 c0.image(cv2.cvtColor(object_overlay(img, labels) if show_obj and labels.max() else img,
