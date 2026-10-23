@@ -50,14 +50,14 @@ Defaults: λ = 1, γ = 8, μ = 50, g = 3 px, max_loss = 0 (`fsc/conditions.py`, 
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                          # 87 tests
+python -m pytest -q                          # 96 tests
 python scripts/pilot_coins.py                # pilot table + figure on the coins photo
 python scripts/get_data.py                   # COCO128-seg, ~7 MB, into data/
 python scripts/run_ablation.py --out results # full ablation (~18 min on 2 cores at 320 px)
 python scripts/make_figures.py --auto 4 --ratio 0.5 --tiles
 ```
 
-Web app (upload a photo, compare methods side by side):
+Web app (upload a photo, compare methods side by side, download a reversible PNG, restore it in the Restore tab):
 
 ```bash
 pip install ultralytics   # optional: automatic object masks
@@ -77,6 +77,40 @@ User study material (paired comparisons, RetargetMe protocol):
 ```bash
 python scripts/make_user_study.py --images 000000000073 000000000368 --ratio 0.5
 ```
+
+## Reversible resizing
+
+A resized image can be undone if the person receiving it also gets a small
+undo file (`fsc/reverse.py`). It travels inside the resized PNG as a private
+chunk that ordinary viewers ignore, so you share one file; the receiver opens
+it in the app's Restore tab or with:
+
+```bash
+python scripts/reversible.py pack photo.jpg --width 50% -o shared.png      # sender (has the original)
+python scripts/reversible.py restore shared.png -o restored.png             # receiver
+```
+
+| Mode | Stores | Restores |
+|---|---|---|
+| `exact` | where every pixel came from, the removed pixels, and the detail the finishing scale lost | the original, bit for bit |
+| `small` | where pixels came from and the removed pixels | carved part exact, scaled part blurred |
+| `tiny` | where pixels came from | removed pixels guessed from their neighbours |
+
+Faithful Seam Carving at half width (undo data on top of the resized PNG):
+
+| Photo | Original PNG | Resized PNG | + exact | + small | + tiny |
+|---|---|---|---|---|---|
+| coins (384x303) | 77 KB | 41 KB | 76 KB (exact) | 19 KB (30 dB) | 6 KB (30 dB) |
+| COCO donuts (320x240) | 147 KB | 79 KB | 92 KB (exact) | 12 KB (31 dB) | 3 KB (29 dB) |
+| COCO bedroom (320x240) | 177 KB | 91 KB | 130 KB (exact) | 53 KB (29 dB) | 4 KB (22 dB) |
+
+Honest reading: exact undo data plus the resized image is about as large as
+the original PNG, so it is not compression; it is for sending the resized
+version while letting the receiver get the original back. Most of it is the
+detail that the finishing scale removed; plain seam carving (no scaling) needs
+only the removed pixels. `tiny` costs a few KB but is only approximate. The
+image must arrive unchanged: chat apps that re-compress or shrink photos break
+it (the restore step detects this), so send the PNG as a file.
 
 ## Conditions in the ablation
 
@@ -170,10 +204,11 @@ fsc/baselines.py    scaling and cropping in the same result format
 fsc/conditions.py   every ablation condition behind one function
 fsc/blobs.py        simple blob masks for photos YOLO does not know (coins)
 fsc/removal.py      object removal demo
+fsc/reverse.py      reversible resizing: undo data, PNG embedding, restore
 fsc/datasets.py     YOLO-seg loader (COCO128-seg / COCO), optional YOLO masks
 fsc/viz.py          overlays and figure panels
-scripts/            pilot, ablation runner, figures, demo, user study, data download
-tests/              87 tests, including brute-force checks of the dynamic program
+scripts/            pilot, ablation runner, figures, demo, reversible pack/restore, user study, data
+tests/              96 tests, including brute-force checks of the dynamic program
 ```
 
 ## References

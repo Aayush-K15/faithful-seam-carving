@@ -25,7 +25,7 @@ def scale(image: np.ndarray, target_width: int, target_height: Optional[int] = N
     return CarveResult(out, _nearest_resample(rows, th, target_width),
                        _nearest_resample(cols, th, target_width),
                        np.ones((H, W), dtype=np.int32), [], {}, {}, False, None, "scale",
-                       (H, W), time.perf_counter() - t0)
+                       (H, W), time.perf_counter() - t0, np.asarray(image).copy(), rows, cols)
 
 
 def crop(image: np.ndarray, target_width: int, target_height: Optional[int] = None,
@@ -40,5 +40,7 @@ def crop(image: np.ndarray, target_width: int, target_height: Optional[int] = No
     counts = np.zeros((H, W), dtype=np.int32)
     counts[y0:y0 + th, x0:x0 + target_width] = 1
     sl = (slice(y0, y0 + th), slice(x0, x0 + target_width))
-    return CarveResult(np.ascontiguousarray(image[sl]), rows[sl].copy(), cols[sl].copy(), counts,
-                       [], {}, {}, False, None, "crop", (H, W), time.perf_counter() - t0)
+    out = np.ascontiguousarray(image[sl])
+    return CarveResult(out, rows[sl].copy(), cols[sl].copy(), counts,
+                       [], {}, {}, False, None, "crop", (H, W), time.perf_counter() - t0,
+                       out, rows[sl].copy(), cols[sl].copy())

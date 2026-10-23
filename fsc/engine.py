@@ -499,6 +499,11 @@ class CarveResult:
     finish_applied: Optional[str]  # "scale", "crop" or None
     carved_shape: tuple[int, int]  # size after seams, before any finishing step
     elapsed_s: float
+    # The image and exact source maps after carving (and any crop) but before
+    # the finishing scale; used to make a result reversible (fsc.reverse).
+    carved_image: Optional[np.ndarray] = None
+    carved_src_rows: Optional[np.ndarray] = None
+    carved_src_cols: Optional[np.ndarray] = None
     # * Exact unless the finishing scale was applied (then nearest-neighbour
     #   resampled). source_counts never includes the finishing scale (scaling
     #   keeps every pixel's content); it does include a finishing crop.
@@ -618,7 +623,7 @@ def resize(image: np.ndarray,
 
     return CarveResult(out_img, out_rows, out_cols, source_counts, history, removed, inserted,
                        reason is not None, reason, finish_applied, carved_shape,
-                       time.perf_counter() - t0)
+                       time.perf_counter() - t0, state.image, state.src_rows, state.src_cols)
 
 
 # =========================================================================== #
