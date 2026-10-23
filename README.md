@@ -50,7 +50,7 @@ Defaults: λ = 1, γ = 8, μ = 50, g = 3 px, max_loss = 0 (`fsc/conditions.py`, 
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                          # 86 tests
+python -m pytest -q                          # 87 tests
 python scripts/pilot_coins.py                # pilot table + figure on the coins photo
 python scripts/get_data.py                   # COCO128-seg, ~7 MB, into data/
 python scripts/run_ablation.py --out results # full ablation (~18 min on 2 cores at 320 px)
@@ -61,7 +61,7 @@ Web app (upload a photo, compare methods side by side):
 
 ```bash
 pip install ultralytics   # optional: automatic object masks
-streamlit run app.py
+streamlit run app.py        # pick 'Simple blobs' in the sidebar for coins or parts on a plain background
 ```
 
 Your own photo on the command line (masks from a pretrained YOLO model: `pip install ultralytics`):
@@ -168,11 +168,12 @@ fsc/integrity.py    per-object budget, gap protection, integrity guard with a di
 fsc/metrics.py      object-integrity and per-object detail metrics
 fsc/baselines.py    scaling and cropping in the same result format
 fsc/conditions.py   every ablation condition behind one function
+fsc/blobs.py        simple blob masks for photos YOLO does not know (coins)
 fsc/removal.py      object removal demo
 fsc/datasets.py     YOLO-seg loader (COCO128-seg / COCO), optional YOLO masks
 fsc/viz.py          overlays and figure panels
 scripts/            pilot, ablation runner, figures, demo, user study, data download
-tests/              86 tests, including brute-force checks of the dynamic program
+tests/              87 tests, including brute-force checks of the dynamic program
 ```
 
 ## References

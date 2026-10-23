@@ -30,7 +30,10 @@ width_pct = st.sidebar.slider("New width (% of original)", 30, 100, 50, 5)
 method_names = st.sidebar.multiselect("Methods to compare", list(METHODS), default=list(METHODS)[:2])
 max_side = st.sidebar.select_slider("Work at max size (px)", [240, 320, 480, 640], value=320,
                                     help="Smaller is faster. Seam carving is slow in pure Python.")
-use_yolo = st.sidebar.checkbox("Detect objects with YOLO", value=True)
+mask_mode = st.sidebar.radio(
+    "Find objects with", ["YOLO (people, animals, everyday objects)", "Simple blobs (coins, parts on a plain background)"],
+    help="YOLO knows 80 COCO classes only. Blobs thresholds the image and splits touching shapes.")
+use_yolo = True
 show_obj = st.sidebar.checkbox("Show detected objects", value=True)
 go = st.sidebar.button("Run", type="primary", disabled=up is None)
 
@@ -61,7 +64,11 @@ def detect(data: bytes, size: int):
 
 
 labels = np.zeros((H, W), np.int32)
-if use_yolo:
+if mask_mode.startswith("Simple"):
+    from fsc.blobs import blob_labels
+    labels = blob_labels(img)
+    st.sidebar.success(f"{int(labels.max())} blobs found")
+else:
     try:
         labels = detect(up.getvalue(), max_side)
         st.sidebar.success(f"{int(labels.max())} objects detected")
@@ -69,10 +76,10 @@ if use_yolo:
         st.sidebar.warning("YOLO not installed (pip install ultralytics). "
                            "Running without object masks, so Faithful cannot protect anything.")
 
-if use_yolo and labels.max() == 0:
-    st.warning("No objects detected. YOLO only knows the 80 COCO classes (people, animals, cups, cars...). "
-               "With nothing to protect, Faithful behaves like plain seam carving, so the results will look the same. "
-               "Try a photo with several people, animals or everyday objects.")
+if labels.max() == 0:
+    st.warning("No objects found, so Faithful has nothing to protect and behaves like plain seam carving. "
+               "YOLO only knows 80 COCO classes (people, animals, cups, cars...). For coins or parts on a plain "
+               "background switch to 'Simple blobs' in the sidebar.")
 
 c0, c1 = st.columns(2)
 c0.subheader(f"Original ({W}x{H})")
