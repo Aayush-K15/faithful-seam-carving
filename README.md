@@ -57,7 +57,14 @@ python scripts/run_ablation.py --out results # full ablation (~18 min on 2 cores
 python scripts/make_figures.py --auto 4 --ratio 0.5 --tiles
 ```
 
-Your own photo (masks from a pretrained YOLO model: `pip install ultralytics`):
+Web app (upload a photo, compare methods side by side):
+
+```bash
+pip install ultralytics   # optional: automatic object masks
+streamlit run app.py
+```
+
+Your own photo on the command line (masks from a pretrained YOLO model: `pip install ultralytics`):
 
 ```bash
 python scripts/demo.py photo.jpg --width 50% -o out.png --overlay out_objects.png
